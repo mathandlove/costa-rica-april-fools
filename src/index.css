@@ -1,21 +1,32 @@
-* {
+*, *::before, *::after {
   box-sizing: border-box;
+  margin: 0;
+  padding: 0;
 }
 
-:root {
+html, body {
+  width: 100%;
+  overflow-x: hidden;
+}
+
+html {
   font-family: 'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, Roboto, 'Helvetica Neue', Arial, sans-serif;
   line-height: 1.5;
-  font-weight: 400;
   color: #213547;
-  background-color: #ffffff;
+  background: #fff;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  -webkit-text-size-adjust: 100%;
 }
 
 body {
-  margin: 0;
-  min-width: 320px;
   min-height: 100vh;
+}
+
+img, video {
+  display: block;
+  max-width: 100%;
+  height: auto;
 }
 
 a {

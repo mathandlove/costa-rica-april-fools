@@ -1,14 +1,224 @@
-import { useState } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import './App.css'
 
 const BASE = 'https://www.ict.go.cr'
 
+const QUESTIONS = [
+  'Water',
+  'The baby is in the water',
+  'I need a towel, please',
+  'Do not splash grandma in the pool',
+  'Run, baby, run before the crocodile eats you',
+]
+
+const SECONDS_PER_QUESTION = 8
+
+function Assessment() {
+  const [phase, setPhase] = useState<'setup' | 'active' | 'complete'>('setup')
+  const [cameraReady, setCameraReady] = useState(false)
+  const [cameraError, setCameraError] = useState(false)
+  const [currentQ, setCurrentQ] = useState(0)
+  const [totalSeconds, setTotalSeconds] = useState(0)
+  const [qProgress, setQProgress] = useState(100)
+  const [recordingBlob, setRecordingBlob] = useState<Blob | null>(null)
+  const [reviewUrl, setReviewUrl] = useState<string | null>(null)
+
+  const streamRef = useRef<MediaStream | null>(null)
+
+  // Callback ref: whenever a <video> mounts, attach the stream
+  const videoRef = useCallback((node: HTMLVideoElement | null) => {
+    if (node && streamRef.current) {
+      node.srcObject = streamRef.current
+    }
+  }, [])
+  const recorderRef = useRef<MediaRecorder | null>(null)
+  const chunksRef = useRef<Blob[]>([])
+  const timerRef = useRef<number | null>(null)
+  const qTimerRef = useRef<number | null>(null)
+  const currentQRef = useRef(0)
+
+  const endTest = useCallback(() => {
+    if (timerRef.current) clearInterval(timerRef.current)
+    if (qTimerRef.current) clearInterval(qTimerRef.current)
+    recorderRef.current?.stop()
+    streamRef.current?.getTracks().forEach(t => t.stop())
+  }, [])
+
+  const showQuestion = useCallback(() => {
+    if (currentQRef.current >= QUESTIONS.length) {
+      endTest()
+      return
+    }
+    setCurrentQ(currentQRef.current)
+    setQProgress(100)
+
+    let elapsed = 0
+    const tick = 100
+    if (qTimerRef.current) clearInterval(qTimerRef.current)
+    qTimerRef.current = window.setInterval(() => {
+      elapsed += tick
+      const pct = Math.max(0, 100 - (elapsed / (SECONDS_PER_QUESTION * 1000)) * 100)
+      setQProgress(pct)
+      if (elapsed >= SECONDS_PER_QUESTION * 1000) {
+        if (qTimerRef.current) clearInterval(qTimerRef.current)
+        currentQRef.current++
+        showQuestion()
+      }
+    }, tick)
+  }, [endTest])
+
+  // Request camera on mount, then immediately start recording + questions
+  useEffect(() => {
+    let mounted = true
+    async function init() {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+        if (!mounted) { stream.getTracks().forEach(t => t.stop()); return }
+        streamRef.current = stream
+        setCameraReady(true)
+
+        // Pick a supported mimeType (iOS Safari doesn't support webm)
+        const mimeType = MediaRecorder.isTypeSupported('video/webm')
+          ? 'video/webm'
+          : MediaRecorder.isTypeSupported('video/mp4')
+            ? 'video/mp4'
+            : ''
+        const recorder = mimeType
+          ? new MediaRecorder(stream, { mimeType })
+          : new MediaRecorder(stream)
+        const actualMime = recorder.mimeType || 'video/webm'
+        const ext = actualMime.includes('mp4') ? 'mp4' : 'webm'
+        recorderRef.current = recorder
+        recorder.ondataavailable = e => { if (e.data.size > 0) chunksRef.current.push(e.data) }
+        recorder.onstop = () => {
+          const blob = new Blob(chunksRef.current, { type: actualMime })
+          const url = URL.createObjectURL(blob)
+          setRecordingBlob(blob)
+          setReviewUrl(url)
+          setPhase('complete')
+
+          // Auto-download
+          const a = document.createElement('a')
+          a.href = url
+          a.download = `poolside-assessment-${Date.now()}.${ext}`
+          a.click()
+        }
+        recorder.start()
+
+        timerRef.current = window.setInterval(() => {
+          setTotalSeconds(s => s + 1)
+        }, 1000)
+
+        setPhase('active')
+        showQuestion()
+      } catch {
+        setCameraError(true)
+      }
+    }
+    init()
+    return () => {
+      mounted = false
+      if (timerRef.current) clearInterval(timerRef.current)
+      if (qTimerRef.current) clearInterval(qTimerRef.current)
+    }
+  }, [showQuestion])
+
+  const formatTime = (s: number) => {
+    const m = String(Math.floor(s / 60)).padStart(2, '0')
+    const sec = String(s % 60).padStart(2, '0')
+    return `${m}:${sec}`
+  }
+
+  const handleDownload = () => {
+    if (!recordingBlob) return
+    const ext = recordingBlob.type.includes('mp4') ? 'mp4' : 'webm'
+    const a = document.createElement('a')
+    a.href = URL.createObjectURL(recordingBlob)
+    a.download = `poolside-assessment-${Date.now()}.${ext}`
+    a.click()
+  }
+
+  if (phase === 'setup') {
+    return (
+      <div className="test-setup">
+        <h2>Preparing Your Assessment</h2>
+        <p className="setup-sub">Poolside Spanish Assessment · Verbal Response Recording</p>
+        {cameraError ? (
+          <div className="camera-notice" style={{ textAlign: 'left', maxWidth: 460, margin: '0 auto' }}>
+            <strong>Camera access was denied.</strong> This assessment requires camera and microphone access to record your verbal responses. Please enable permissions in your browser settings and reload the page.
+          </div>
+        ) : (
+          <p className="setup-instructions">Requesting camera and microphone access...</p>
+        )}
+        <p className="notice-decreto" style={{ marginTop: 24 }}>
+          Your recording is used for verification purposes only.
+        </p>
+      </div>
+    )
+  }
+
+  if (phase === 'complete') {
+    return (
+      <div className="test-complete">
+        <div className="complete-check">✓</div>
+        <h2>Assessment Complete</h2>
+        <p className="complete-sub">Poolside Spanish Assessment — Passed</p>
+        <div className="complete-details">
+          <p>Your recording has been saved and linked to your travel documentation.</p>
+          <p>No further action is required.</p>
+        </div>
+        <div className="confirmation-box">
+          <div className="confirmation-label">Confirmation Number</div>
+          <div className="confirmation-number">PSA-2026-{Math.floor(Math.random() * 900000 + 100000)}</div>
+        </div>
+        <button className="cta-button" onClick={handleDownload} style={{ marginTop: 24 }}>
+          Save Recording for Records
+        </button>
+        {reviewUrl && (
+          <video src={reviewUrl} controls className="review-video" />
+        )}
+        <p className="notice-decreto" style={{ marginTop: 24 }}>
+          Instituto Costarricense de Turismo · Decreto Ejecutivo No. 44891-TUR
+        </p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="test-active">
+      <div className="test-top-bar">
+        <div className="rec-badge"><div className="rec-dot" /> REC</div>
+        <div className="test-progress-text">Question {currentQ + 1} of {QUESTIONS.length}</div>
+        <div className="test-timer">{formatTime(totalSeconds)}</div>
+      </div>
+      <div className="test-body">
+        <div className="webcam-container">
+          <video ref={videoRef} autoPlay muted playsInline className="webcam-video" />
+        </div>
+        <div className="test-question-area">
+          <div className="test-question-label">Say in Spanish</div>
+          <div className="test-question-text">"{QUESTIONS[currentQ]}"</div>
+          <div className="question-timer-bar">
+            <div className="question-timer-fill" style={{ width: `${qProgress}%` }} />
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function App() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null)
+  const [assessmentStarted, setAssessmentStarted] = useState(false)
 
   const toggleDropdown = (menu: string) => {
     setActiveDropdown(activeDropdown === menu ? null : menu)
+  }
+
+  const startAssessment = () => {
+    setAssessmentStarted(true)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
   return (
@@ -107,128 +317,112 @@ function App() {
         </div>
       </header>
 
-      {/* Hero Banner */}
-      <section className="hero">
-        <div className="hero-overlay">
-          <h1>Costa Rica Tourism Board</h1>
-          <p className="hero-sub">INSTITUTIONAL SITE</p>
-        </div>
-      </section>
+      {!assessmentStarted ? (
+        <>
+          {/* Hero Banner */}
+          <section className="hero">
+            <div className="hero-overlay">
+              <div className="alert-badge">ACTION REQUIRED</div>
+              <h1>Take the Poolside Spanish Assessment Now</h1>
+              <p className="hero-sub">REQUIRED FOR TRAVELERS STAYING AT PROPERTIES WITH POOL ACCESS</p>
+            </div>
+          </section>
 
-      {/* Welcome Section */}
-      <section className="welcome">
-        <div className="container">
-          <h2>Welcome</h2>
-          <p>
-            The Costa Rican Tourism Board (ICT) invites you to explore this dynamic platform,
-            in which you can learn in detail about the area of activity of Costa Rica's leading
-            tourism institution, with up-to-date information for all of your inquiries.
-          </p>
-        </div>
-      </section>
-
-      {/* Quick Access Cards */}
-      <section className="quick-access">
-        <div className="container">
-          <div className="card-grid">
-            <a href={`${BASE}/en/statistics.html`} className="icon-card">
-              <img className="icon-img" src="/images/iconos/icon-estadisticas.png" alt="Statistics" />
-              <h3>Statistics</h3>
-              <p>Tourism Statistics</p>
-              <span className="card-link">Learn More →</span>
-            </a>
-            <a href={`${BASE}/en/component/content/article/811-sustainability.html?Itemid=563&catid=118`} className="icon-card">
-              <img className="icon-img" src="/images/iconos/icon-sostenibilidad.png" alt="Sustainability" />
-              <h3>Sustainability</h3>
-              <p>Tourism Sustainability</p>
-              <span className="card-link">Learn More →</span>
-            </a>
-            <a href={`${BASE}/en/formalities/procedures-and-information-to-citizens.html`} className="icon-card">
-              <img className="icon-img" src="/images/iconos/icon-tramites.png" alt="Procedures" />
-              <h3>Procedures</h3>
-              <p>and Citizen Information</p>
-              <span className="card-link">Learn More →</span>
-            </a>
-            <a href={`${BASE}/en/our-work/regional-offices.html`} className="icon-card">
-              <img className="icon-img" src="/images/iconos/icon-promocional.png" alt="Regional Offices" />
-              <h3>Regional Offices</h3>
-              <p>Where can you find us?</p>
-              <span className="card-link">Learn More →</span>
-            </a>
-          </div>
-        </div>
-      </section>
-
-      {/* Institutional Services */}
-      <section className="services-section">
-        <div className="container">
-          <h2>Institutional Services</h2>
-          <div className="services-grid">
-            {[
-              { title: 'Airplane Tickets', desc: 'Travel coordination and airline ticket management for institutional purposes.', img: '/images/media/boletos.jpg', link: '/en/institutional-services/airplane-tickets.html' },
-              { title: 'Cooperative Campaigns', desc: 'Joint promotional campaigns with tourism industry partners.', img: '/images/media/campanas-cooperativas.png', link: '/en/institutional-services/cooperative-campaigns.html' },
-              { title: 'Country Brand', desc: "Management and promotion of Costa Rica's Essential Costa Rica brand.", img: '/images/media/marcas.jpg', link: '/en/institutional-services/country-brand.html' },
-              { title: 'Press Trips', desc: "Organized media visits to showcase Costa Rica's tourism offerings.", img: '/images/media/viajes-prensa.png', link: '/en/institutional-services/press-trips.html' },
-              { title: 'Tourist Guide Requirements', desc: 'Licensing and certification for professional tourist guides.', img: '/images/media/guia-turismo.jpg', link: '/en/institutional-services/tourist-guide-requirements.html' },
-              { title: 'Tax Return', desc: 'Tax incentive programs for qualifying tourism businesses.', img: '/images/media/impuestos.jpg', link: '/en/institutional-services/tax-return.html' },
-              { title: 'Tourism Development', desc: 'Strategic planning and development of tourism infrastructure.', img: '/images/media/gestion.png', link: '/en/our-work/tourism-development.html' },
-              { title: 'Crafts with Identity', desc: 'Supporting authentic Costa Rican artisan craftsmanship.', img: '/images/media/artesanias.jpg', link: '/en/institutional-services/crafts-with-identity.html' },
-              { title: 'Cultural Tourist Guide', desc: 'Specialized guidance for cultural heritage tourism experiences.', img: '/images/media/guias-culturales.jpg', link: '/en/institutional-services/cultural-tourist-guide.html' },
-            ].map((service) => (
-              <a href={`${BASE}${service.link}`} className="service-card" key={service.title}>
-                <div className="service-img" style={{ backgroundImage: `url(${service.img})` }}></div>
-                <div className="service-body">
-                  <h4>{service.title}</h4>
-                  <p>{service.desc}</p>
-                  <span className="read-more">Read more →</span>
+          {/* Quick Info */}
+          <section className="quick-access">
+            <div className="container">
+              <div className="card-grid card-grid-3">
+                <div className="icon-card">
+                  <div className="check-icon">✓</div>
+                  <h3>Easy to complete</h3>
+                  <p>Only basic Spanish is needed.</p>
                 </div>
-              </a>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Tourism Statistics Banner */}
-      <section className="stats-banner">
-        <div className="container">
-          <h2>Tourism Statistics</h2>
-          <div className="stats-grid">
-            <a href={`${BASE}/en/statistics/tourism-figures.html`} className="stat-card">
-              <img src="/images/internas/est-1-en.png" alt="75% travel for vacation" className="stat-img" />
-            </a>
-            <a href={`${BASE}/en/statistics/economic-figures.html`} className="stat-card">
-              <img src="/images/internas/est-2.png" alt="More than 2 million visits" className="stat-img" />
-            </a>
-            <a href={`${BASE}/en/statistics/tourism-figures/charts-and-graphics.html`} className="stat-card">
-              <img src="/images/internas/est-3.png" alt="68% enjoy sun and beaches" className="stat-img" />
-            </a>
-          </div>
-        </div>
-      </section>
-
-      {/* News Section */}
-      <section className="news-section">
-        <div className="container">
-          <h2>Latest News</h2>
-          <div className="news-grid">
-            {[
-              { title: 'Río Cuarto Canton Brand Launch', desc: 'New destination branding initiative highlights the natural beauty and cultural heritage of Río Cuarto.', img: '/images/nota_rio_cuarto.jpg', link: "/en/top-news/1936-r\u00edo-cuarto-launches-canton-brand,-seeking-to-become-the-country's-newest-tourism-destination.html" },
-              { title: 'Manuel Antonio Reopening', desc: "One of Costa Rica's most popular national parks welcomes visitors with enhanced sustainability measures.", img: '/images/nota_MA.jpg', link: '/en/top-news/1870-manuel-antonio-to-open-mondays-beginning-april-1.html' },
-              { title: 'FITUR Award', desc: 'Costa Rica recognized at international tourism fair for excellence in sustainable tourism practices.', img: '/images/premio_fitur.jpg', link: '/en/featured-news/1935-costa-rica-wins-best-sustainable-stand-at-the-fitur-tourism-fair-in-spain.html' },
-              { title: 'National Campaign', desc: 'New national tourism campaign promotes domestic travel and highlights hidden gems across the country.', img: '/images/nota_camp_nac.jpg', link: '/en/top-news/1899-nine-can\'t-miss-attractions-you-have-to-see-in-santa-cruz-and-nicoya.html' },
-            ].map((news) => (
-              <a href={`${BASE}${news.link}`} className="news-card" key={news.title}>
-                <div className="news-img" style={{ backgroundImage: `url(${news.img})` }}></div>
-                <div className="news-body">
-                  <h4>{news.title}</h4>
-                  <p>{news.desc}</p>
-                  <span className="read-more">Read more →</span>
+                <div className="icon-card">
+                  <div className="check-icon">⏱</div>
+                  <h3>5 to 10 minutes</h3>
+                  <p>Most visitors finish quickly.</p>
                 </div>
-              </a>
-            ))}
+                <div className="icon-card">
+                  <div className="check-icon">📅</div>
+                  <h3>30-day window</h3>
+                  <p>Must be completed within 30 days of travel.</p>
+                </div>
+              </div>
+              <div className="cta-section">
+                <button className="cta-button" onClick={startAssessment}>
+                  Begin Assessment
+                </button>
+              </div>
+            </div>
+          </section>
+
+          {/* Visitor Travel Notice */}
+          <section className="notice-section">
+            <div className="container">
+              <div className="notice-card">
+                <div className="notice-header">
+                  <span className="notice-flag">🇨🇷</span>
+                  <div>
+                    <h2>REPUBLIC OF COSTA RICA</h2>
+                    <h3>Visitor Travel Notice</h3>
+                  </div>
+                </div>
+
+                <p className="notice-intro">
+                  Visitors staying at any hotel, villa, rental home, resort, or private residence with pool access must complete a brief <strong>Poolside Spanish Assessment</strong> before travel.
+                </p>
+
+                <p>
+                  This assessment is intended to confirm basic poolside Spanish familiarity for common visitor situations.
+                </p>
+
+                <div className="notice-item">
+                  <h4>Who must complete it</h4>
+                  <p>Any non-resident visitor staying at a property with pool access.</p>
+                </div>
+
+                <div className="notice-item">
+                  <h4>Additional rollout requirement</h4>
+                  <p>For travel parties with a child under 2, at least one supervising adult must complete the assessment before arrival.</p>
+                </div>
+
+                <div className="notice-item">
+                  <h4>Assessment standard</h4>
+                  <p>The assessment is brief and designed for travelers with only limited Spanish familiarity. Advanced Spanish is not required.</p>
+                </div>
+
+                <div className="notice-item">
+                  <h4>Completion window</h4>
+                  <p>The assessment must be completed within 30 days of travel and before arrival.</p>
+                </div>
+
+                <div className="notice-item notice-highlight">
+                  <h4>Visitor instruction</h4>
+                  <p>Complete the Poolside Spanish Assessment now.</p>
+                </div>
+
+                <div className="camera-notice">
+                  <strong>Camera and microphone required.</strong> This assessment records your verbal responses for identity verification. Please ensure your device camera and microphone are enabled before proceeding.
+                </div>
+
+                <div className="cta-section">
+                  <button className="cta-button" onClick={startAssessment}>Begin Assessment</button>
+                </div>
+
+                <p className="notice-decreto">
+                  Required under Decreto Ejecutivo No. 44891-TUR for all non-resident visitors with poolside access.
+                </p>
+              </div>
+            </div>
+          </section>
+        </>
+      ) : (
+        <section className="assessment-section">
+          <div className="container">
+            <Assessment />
           </div>
-        </div>
-      </section>
+        </section>
+      )}
 
       {/* Footer */}
       <footer className="footer">
