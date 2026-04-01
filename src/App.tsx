@@ -15,7 +15,7 @@ const SECONDS_PER_QUESTION = 8
 
 function Assessment() {
   const [phase, setPhase] = useState<'setup' | 'active' | 'complete'>('setup')
-  const [cameraReady, setCameraReady] = useState(false)
+  const [, setCameraReady] = useState(false)
   const [cameraError, setCameraError] = useState(false)
   const [currentQ, setCurrentQ] = useState(0)
   const [totalSeconds, setTotalSeconds] = useState(0)
