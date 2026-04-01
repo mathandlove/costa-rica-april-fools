@@ -30,7 +30,7 @@ function App() {
       <header className="header">
         <div className="header-inner">
           <div className="logo">
-            <img src="https://www.ict.go.cr/images/logo-ict-2018.png" alt="ICT Logo" />
+            <img src="/images/logo-ict-2018.png" alt="ICT Logo" />
           </div>
           <button className="mobile-toggle" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
             ☰
@@ -131,25 +131,25 @@ function App() {
         <div className="container">
           <div className="card-grid">
             <div className="icon-card">
-              <div className="icon-circle">📊</div>
+              <img className="icon-img" src="/images/iconos/icon-estadisticas.png" alt="Statistics" />
               <h3>Statistics</h3>
               <p>Tourism Statistics</p>
               <a href="#" className="card-link">Learn More →</a>
             </div>
             <div className="icon-card">
-              <div className="icon-circle">🌿</div>
+              <img className="icon-img" src="/images/iconos/icon-sostenibilidad.png" alt="Sustainability" />
               <h3>Sustainability</h3>
               <p>Tourism Sustainability</p>
               <a href="#" className="card-link">Learn More →</a>
             </div>
             <div className="icon-card">
-              <div className="icon-circle">📋</div>
+              <img className="icon-img" src="/images/iconos/icon-tramites.png" alt="Procedures" />
               <h3>Procedures</h3>
               <p>and Citizen Information</p>
               <a href="#" className="card-link">Learn More →</a>
             </div>
             <div className="icon-card">
-              <div className="icon-circle">📍</div>
+              <img className="icon-img" src="/images/iconos/icon-promocional.png" alt="Regional Offices" />
               <h3>Regional Offices</h3>
               <p>Where can you find us?</p>
               <a href="#" className="card-link">Learn More →</a>
@@ -164,18 +164,18 @@ function App() {
           <h2>Institutional Services</h2>
           <div className="services-grid">
             {[
-              { title: 'Airplane Tickets', desc: 'Travel coordination and airline ticket management for institutional purposes.' },
-              { title: 'Cooperative Campaigns', desc: 'Joint promotional campaigns with tourism industry partners.' },
-              { title: 'Country Brand', desc: 'Management and promotion of Costa Rica\'s Essential Costa Rica brand.' },
-              { title: 'Press Trips', desc: 'Organized media visits to showcase Costa Rica\'s tourism offerings.' },
-              { title: 'Tourist Guide Requirements', desc: 'Licensing and certification for professional tourist guides.' },
-              { title: 'Tax Return', desc: 'Tax incentive programs for qualifying tourism businesses.' },
-              { title: 'Tourism Development', desc: 'Strategic planning and development of tourism infrastructure.' },
-              { title: 'Crafts with Identity', desc: 'Supporting authentic Costa Rican artisan craftsmanship.' },
-              { title: 'Cultural Tourist Guide', desc: 'Specialized guidance for cultural heritage tourism experiences.' },
+              { title: 'Airplane Tickets', desc: 'Travel coordination and airline ticket management for institutional purposes.', img: '/images/media/boletos.jpg' },
+              { title: 'Cooperative Campaigns', desc: 'Joint promotional campaigns with tourism industry partners.', img: '/images/media/campanas-cooperativas.png' },
+              { title: 'Country Brand', desc: "Management and promotion of Costa Rica's Essential Costa Rica brand.", img: '/images/media/marcas.jpg' },
+              { title: 'Press Trips', desc: "Organized media visits to showcase Costa Rica's tourism offerings.", img: '/images/media/viajes-prensa.png' },
+              { title: 'Tourist Guide Requirements', desc: 'Licensing and certification for professional tourist guides.', img: '/images/media/guia-turismo.jpg' },
+              { title: 'Tax Return', desc: 'Tax incentive programs for qualifying tourism businesses.', img: '/images/media/impuestos.jpg' },
+              { title: 'Tourism Development', desc: 'Strategic planning and development of tourism infrastructure.', img: '/images/media/gestion.png' },
+              { title: 'Crafts with Identity', desc: 'Supporting authentic Costa Rican artisan craftsmanship.', img: '/images/media/artesanias.jpg' },
+              { title: 'Cultural Tourist Guide', desc: 'Specialized guidance for cultural heritage tourism experiences.', img: '/images/media/guias-culturales.jpg' },
             ].map((service) => (
               <div className="service-card" key={service.title}>
-                <div className="service-img"></div>
+                <div className="service-img" style={{ backgroundImage: `url(${service.img})` }}></div>
                 <div className="service-body">
                   <h4>{service.title}</h4>
                   <p>{service.desc}</p>
@@ -193,16 +193,13 @@ function App() {
           <h2>Tourism Statistics</h2>
           <div className="stats-grid">
             <div className="stat-card">
-              <div className="stat-number">75%</div>
-              <p>travel for vacation purposes</p>
+              <img src="/images/internas/est-1-en.png" alt="75% travel for vacation" className="stat-img" />
             </div>
             <div className="stat-card">
-              <div className="stat-number">2M+</div>
-              <p>visits per year</p>
+              <img src="/images/internas/est-2.png" alt="More than 2 million visits" className="stat-img" />
             </div>
             <div className="stat-card">
-              <div className="stat-number">68%</div>
-              <p>enjoy the sun and beaches</p>
+              <img src="/images/internas/est-3.png" alt="68% enjoy sun and beaches" className="stat-img" />
             </div>
           </div>
         </div>
@@ -214,13 +211,13 @@ function App() {
           <h2>Latest News</h2>
           <div className="news-grid">
             {[
-              { title: 'Río Cuarto Canton Brand Launch', desc: 'New destination branding initiative highlights the natural beauty and cultural heritage of Río Cuarto.' },
-              { title: 'Glamping in Geodesic Domes', desc: 'Innovative eco-tourism accommodation options expanding across Costa Rica\'s diverse landscapes.' },
-              { title: 'Santa Cruz and Nicoya Attractions', desc: 'Discover the rich traditions and stunning coastlines of Guanacaste\'s most beloved destinations.' },
-              { title: 'Manuel Antonio Reopening', desc: 'One of Costa Rica\'s most popular national parks welcomes visitors with enhanced sustainability measures.' },
+              { title: 'Río Cuarto Canton Brand Launch', desc: 'New destination branding initiative highlights the natural beauty and cultural heritage of Río Cuarto.', img: '/images/nota_rio_cuarto.jpg' },
+              { title: 'Manuel Antonio Reopening', desc: "One of Costa Rica's most popular national parks welcomes visitors with enhanced sustainability measures.", img: '/images/nota_MA.jpg' },
+              { title: 'FITUR Award', desc: 'Costa Rica recognized at international tourism fair for excellence in sustainable tourism practices.', img: '/images/premio_fitur.jpg' },
+              { title: 'National Campaign', desc: 'New national tourism campaign promotes domestic travel and highlights hidden gems across the country.', img: '/images/nota_camp_nac.jpg' },
             ].map((news) => (
               <div className="news-card" key={news.title}>
-                <div className="news-img"></div>
+                <div className="news-img" style={{ backgroundImage: `url(${news.img})` }}></div>
                 <div className="news-body">
                   <h4>{news.title}</h4>
                   <p>{news.desc}</p>
@@ -239,7 +236,7 @@ function App() {
             <h4>Costa Rica Tourism Board</h4>
             <p>Instituto Costarricense de Turismo</p>
             <div className="footer-logos">
-              <span className="essential-cr">essential COSTA RICA</span>
+              <img src="/images/esencial.svg" alt="Essential Costa Rica" className="essential-logo" />
             </div>
           </div>
           <div className="footer-col">
@@ -250,9 +247,9 @@ function App() {
           <div className="footer-col">
             <h4>Follow Us</h4>
             <div className="social-links">
-              <a href="#">Facebook</a>
-              <a href="#">Instagram</a>
-              <a href="#">YouTube</a>
+              <a href="#"><img src="/images/internas/social/facebook.png" alt="Facebook" className="social-icon" /> Facebook</a>
+              <a href="#"><img src="/images/internas/social/Instagram.png" alt="Instagram" className="social-icon" /> Instagram</a>
+              <a href="#"><img src="/images/internas/social/youtube.png" alt="YouTube" className="social-icon" /> YouTube</a>
             </div>
           </div>
           <div className="footer-col">
@@ -263,6 +260,12 @@ function App() {
           </div>
         </div>
         <div className="footer-bottom">
+          <div className="footer-bottom-logos">
+            <img src="/images/footer-logos/ict-footer.png" alt="ICT" className="footer-logo-img" />
+            <img src="/images/footer-logos/digital.png" alt="Digital Government" className="footer-logo-img" />
+            <img src="/images/footer-logos/logosicop.gif" alt="SICOP" className="footer-logo-img" />
+            <img src="/images/footer-logos/contra.png" alt="Code of Conduct" className="footer-logo-img" />
+          </div>
           <p>© All Rights Reserved - 2025 | Costa Rica Tourism Board</p>
           <div className="footer-bottom-links">
             <a href="#">Privacy Policy</a>
